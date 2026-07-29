@@ -106,7 +106,8 @@ void process_dbf_body(FILE *dbf_file, DBF_INFO *dbf_info, FILE* csv_file) {
     uint32_t n = 0;
 
     // Processa cada entrada (linha) do arquivo DBF
-    while (fgetc(dbf_file) != 0x1a && fgetc(dbf_file) != EOF) {  // 0x1a é o marcador de fim de arquivo em DBF
+    int c;
+    while ((c = fgetc(dbf_file)) != 0x1a && c != EOF) {  // 0x1a é o marcador de fim de arquivo em DBF
         process_entry_n(dbf_file, csv_file, dbf_info, n);
         n++;
         fseek(dbf_file, dbf_info->lenHeader + (n * dbf_info->sizeOfRecord), SEEK_SET);
@@ -123,12 +124,22 @@ void process_header(FILE *csv_file, DBF_INFO *dbf_info) {
     }
 }
 
+// Função para encontrar coluna que contém CNES no arquivo DBF
+int find_cnes_column(DBF_INFO *dbf_info) {
+    for (int i = 0; i < dbf_info->nCols; i++) {
+        if (strncmp(dbf_info->fields[i].fieldName, "CNES", 4) == 0)
+            return i;
+    }
+    return -1;
+}
+
 // Função para processar uma entrada específica (linha) do arquivo DBF
 void process_entry_n(FILE *dbf_file, FILE *csv_file, DBF_INFO *dbf_info, uint32_t n) {
     uint16_t start_of_data = dbf_info->lenHeader;  // Posição inicial dos dados
     uint16_t size_of_entry = dbf_info->sizeOfRecord; // Tamanho de cada registro
     void* cell_buffer = malloc(256);  // Buffer para armazenar o conteúdo de uma célula
-    char line_buffer[1000] = "";
+    char *line_buffer = malloc(dbf_info->sizeOfRecord + dbf_info->nCols + 10);
+    line_buffer[0] = '\0';
     char field_buffer[256];
     uint8_t size_of_cell = dbf_info->fields[0].fieldSize;  // Tamanho do campo
     uint8_t type_of_data = dbf_info->fields[0].fieldType;  // Tipo do campo
@@ -143,11 +154,7 @@ void process_entry_n(FILE *dbf_file, FILE *csv_file, DBF_INFO *dbf_info, uint32_
         return;
     }
 
-    if (!strcmp(sistema, "SIA")) {
-        sia_sih = 0;
-    } else {
-        sia_sih = 4;
-    }
+    sia_sih = find_cnes_column(dbf_info);
 
     // Processa cada campo (coluna) do registro
     for (int i = 0; i < dbf_info->nCols; i++) {
