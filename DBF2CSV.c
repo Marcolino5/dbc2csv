@@ -120,53 +120,60 @@ void process_header(FILE *csv_file, DBF_INFO *dbf_info) {
 
 // Função para processar uma entrada específica (linha) do arquivo DBF
 void process_entry_n(FILE *dbf_file, FILE *csv_file, DBF_INFO *dbf_info, uint32_t n) {
-    uint16_t start_of_data = dbf_info->lenHeader;  // Posição inicial dos dados
-    uint16_t size_of_entry = dbf_info->sizeOfRecord; // Tamanho de cada registro
-    void* cell_buffer = malloc(256);  // Buffer para armazenar o conteúdo de uma célula
-    char line_buffer[1000] = "";
-    char field_buffer[256];
-    uint8_t size_of_cell = dbf_info->fields[0].fieldSize;  // Tamanho do campo
-    uint8_t type_of_data = dbf_info->fields[0].fieldType;  // Tipo do campo
+    uint16_t start_of_data = dbf_info->lenHeader;
+    uint16_t size_of_entry = dbf_info->sizeOfRecord;
+
+    char *cell_buffer = malloc(256);
+    char *line_buffer = calloc((size_t)size_of_entry + dbf_info->nCols + 1, 1);
+    char field_buffer[258];
+
+    uint8_t size_of_cell;
     uint8_t sia_sih;
 
-    // Posiciona o ponteiro do arquivo no início do registro desejado
-    fseek(dbf_file, start_of_data + (n * size_of_entry), SEEK_SET);
-
-    char line_flag = fgetc(dbf_file);  // Lê o flag de linha (indica se a linha está ativa ou deletada)
-
-    if (line_flag == 0x2a){ // se o arquivo foi deletado ignore-o
-        return;
+    if (!cell_buffer || !line_buffer) {
+        fprintf(stderr, "Erro ao alocar memoria\n");
+        exit(EXIT_FAILURE);
     }
 
-    if (!strcmp(sistema, "SIA")) {
-        sia_sih = 0;
-    } else {
-        sia_sih = 4;
+    fseek(dbf_file, (long)start_of_data + (long)n * size_of_entry, SEEK_SET);
+
+    char line_flag = fgetc(dbf_file);
+
+    if (line_flag == 0x2a) {
+        goto cleanup;
     }
 
-    // Processa cada campo (coluna) do registro
+    sia_sih = !strcmp(sistema, "SIA") ? 0 : 4;
+
     for (int i = 0; i < dbf_info->nCols; i++) {
-        size_of_cell = dbf_info->fields[i].fieldSize;  // Tamanho do campo
-        type_of_data = dbf_info->fields[i].fieldType;  // Tipo do campo
+        size_of_cell = dbf_info->fields[i].fieldSize;
 
-        // Lê o conteúdo do campo
-        fread(cell_buffer, size_of_cell, 1, dbf_file);
-        ((char*)cell_buffer)[size_of_cell] = '\0';  // Adiciona terminador nulo
-        str_subs(cell_buffer, ',', '.', 30);
-
-        if (i == sia_sih && strcmp((char*) cell_buffer, cnes)) {
-            return; // Se o CNES não corresponde ao esperado, ignore o registro
+        if (fread(cell_buffer, size_of_cell, 1, dbf_file) != 1) {
+            fprintf(stderr, "Erro lendo registro %u\n", n);
+            exit(EXIT_FAILURE);
         }
 
-        // Processa o campo
-        if (i < dbf_info->nCols-1) {
+        ((char*)cell_buffer)[size_of_cell] = '\0';
+        str_subs(cell_buffer, ',', '.', size_of_cell);
+
+        if (i == sia_sih && strcmp((char*)cell_buffer, cnes)) {
+            goto cleanup;
+        }
+
+        if (i < dbf_info->nCols - 1) {
             sprintf(field_buffer, "%s,", (char*)cell_buffer);
         } else {
             sprintf(field_buffer, "%s\n", (char*)cell_buffer);
         }
+
         strcat(line_buffer, field_buffer);
     }
+
     fprintf(csv_file, "%s", line_buffer);
+
+cleanup:
+    free(cell_buffer);
+    free(line_buffer);
 }
 
 void str_subs(char* str, char changed, char changer, int til) {
