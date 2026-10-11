@@ -103,13 +103,8 @@ DBF_INFO *get_dbf_info(FILE *file) {
 
 // Função para processar o corpo do arquivo DBF e convertê-lo para CSV
 void process_dbf_body(FILE *dbf_file, DBF_INFO *dbf_info, FILE* csv_file) {
-    uint32_t n = 0;
-
-    // Processa cada entrada (linha) do arquivo DBF
-    while (fgetc(dbf_file) != 0x1a && fgetc(dbf_file) != EOF) {  // 0x1a é o marcador de fim de arquivo em DBF
+    for (uint32_t n = 0; n < dbf_info->nLines; n++) {
         process_entry_n(dbf_file, csv_file, dbf_info, n);
-        n++;
-        fseek(dbf_file, dbf_info->lenHeader + (n * dbf_info->sizeOfRecord), SEEK_SET);
     }
 }
 
