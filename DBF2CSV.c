@@ -152,7 +152,7 @@ void process_entry_n(FILE *dbf_file, FILE *csv_file, DBF_INFO *dbf_info, uint32_
         // Lê o conteúdo do campo
         fread(cell_buffer, size_of_cell, 1, dbf_file);
         ((char*)cell_buffer)[size_of_cell] = '\0';  // Adiciona terminador nulo
-        str_subs(cell_buffer, ',', '.', size_of_cell);
+        str_subs(cell_buffer, ',', '.', 30);
 
         if (i == sia_sih && strcmp((char*) cell_buffer, cnes)) {
             return; // Se o CNES não corresponde ao esperado, ignore o registro
@@ -169,8 +169,8 @@ void process_entry_n(FILE *dbf_file, FILE *csv_file, DBF_INFO *dbf_info, uint32_
     fprintf(csv_file, "%s", line_buffer);
 }
 
-void str_subs(char* str, char changed, char changer, size_t len) {
-    for (int i = 0; i < len; i++){
+void str_subs(char* str, char changed, char changer, int til) {
+    for (int i = 0; i < til; i++){
         if (str[i] == changed){
             str[i] = changer;
         }
