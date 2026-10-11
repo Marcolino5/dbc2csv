@@ -122,7 +122,7 @@ void process_header(FILE *csv_file, DBF_INFO *dbf_info) {
 void process_entry_n(FILE *dbf_file, FILE *csv_file, DBF_INFO *dbf_info, uint32_t n) {
     uint16_t start_of_data = dbf_info->lenHeader;  // Posição inicial dos dados
     uint16_t size_of_entry = dbf_info->sizeOfRecord; // Tamanho de cada registro
-    char cell_buffer[256];  // Buffer para armazenar o conteúdo de uma célula
+    void* cell_buffer = malloc(256);  // Buffer para armazenar o conteúdo de uma célula
     char line_buffer[1000] = "";
     char field_buffer[256];
     uint8_t size_of_cell = dbf_info->fields[0].fieldSize;  // Tamanho do campo
@@ -151,8 +151,8 @@ void process_entry_n(FILE *dbf_file, FILE *csv_file, DBF_INFO *dbf_info, uint32_
 
         // Lê o conteúdo do campo
         fread(cell_buffer, size_of_cell, 1, dbf_file);
-        [size_of_cell] = '\0';  // Adiciona terminador nulo
-        str_subs(cell_buffer, ',', '.', 30);
+        ((char*)cell_buffer)[size_of_cell] = '\0';  // Adiciona terminador nulo
+        str_subs(cell_buffer, ',', '.', size_of_cell);
 
         if (i == sia_sih && strcmp((char*) cell_buffer, cnes)) {
             return; // Se o CNES não corresponde ao esperado, ignore o registro
@@ -169,8 +169,8 @@ void process_entry_n(FILE *dbf_file, FILE *csv_file, DBF_INFO *dbf_info, uint32_
     fprintf(csv_file, "%s", line_buffer);
 }
 
-void str_subs(char* str, char changed, char changer, int til) {
-    for (int i = 0; i < til; i++){
+void str_subs(char* str, char changed, char changer, size_t len) {
+    for (int i = 0; i < len; i++){
         if (str[i] == changed){
             str[i] = changer;
         }
